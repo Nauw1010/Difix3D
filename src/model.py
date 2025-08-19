@@ -235,6 +235,11 @@ class Difix(torch.nn.Module):
         caption_enc = repeat(caption_enc, 'b n c -> (b v) n c', v=num_views)
         
         unet_input = z
+
+        # add small noise to unet_input
+        unet_input_shape = unet_input.shape
+        rand_noise = torch.randn(unet_input_shape, device=unet_input.device, dtype=unet_input.dtype)
+        unet_input = self.sched.add_noise(unet_input, rand_noise, self.timesteps // 4)
         
         model_pred = self.unet(unet_input, self.timesteps, encoder_hidden_states=caption_enc,).sample
         z_denoised = self.sched.step(model_pred, self.timesteps, z, return_dict=True).prev_sample

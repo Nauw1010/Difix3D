@@ -359,4 +359,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    # Append datetime to the output directory
+    import datetime
+    args.output_dir = os.path.join(args.output_dir, datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+
     main(args)
