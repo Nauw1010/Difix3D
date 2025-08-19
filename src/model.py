@@ -15,7 +15,8 @@ from einops import rearrange, repeat
 
 
 def make_1step_sched():
-    noise_scheduler_1step = DDPMScheduler.from_pretrained("stabilityai/sd-turbo", subfolder="scheduler")
+    # noise_scheduler_1step = DDPMScheduler.from_pretrained("stabilityai/sd-turbo", subfolder="scheduler")
+    noise_scheduler_1step = DDPMScheduler.from_pretrained("nvidia/difix_ref", subfolder="scheduler")
     noise_scheduler_1step.set_timesteps(1, device="cuda")
     noise_scheduler_1step.alphas_cumprod = noise_scheduler_1step.alphas_cumprod.cuda()
     return noise_scheduler_1step
@@ -116,11 +117,14 @@ def save_ckpt(net_difix, optimizer, outf):
 class Difix(torch.nn.Module):
     def __init__(self, pretrained_name=None, pretrained_path=None, ckpt_folder="checkpoints", lora_rank_vae=4, mv_unet=False, timestep=999):
         super().__init__()
-        self.tokenizer = AutoTokenizer.from_pretrained("stabilityai/sd-turbo", subfolder="tokenizer")
-        self.text_encoder = CLIPTextModel.from_pretrained("stabilityai/sd-turbo", subfolder="text_encoder").cuda()
+        #self.tokenizer = AutoTokenizer.from_pretrained("stabilityai/sd-turbo", subfolder="tokenizer")
+        #self.text_encoder = CLIPTextModel.from_pretrained("stabilityai/sd-turbo", subfolder="text_encoder").cuda()
+        self.tokenizer = AutoTokenizer.from_pretrained("nvidia/difix_ref", subfolder="tokenizer")
+        self.text_encoder = CLIPTextModel.from_pretrained("nvidia/difix_ref", subfolder="text_encoder").cuda()
         self.sched = make_1step_sched()
 
         vae = AutoencoderKL.from_pretrained("stabilityai/sd-turbo", subfolder="vae")
+        #vae = AutoencoderKL.from_pretrained("nvidia/difix_ref", subfolder="vae")
         vae.encoder.forward = my_vae_encoder_fwd.__get__(vae.encoder, vae.encoder.__class__)
         vae.decoder.forward = my_vae_decoder_fwd.__get__(vae.decoder, vae.decoder.__class__)
         # add the skip connection convs
@@ -135,7 +139,8 @@ class Difix(torch.nn.Module):
         else:
             from diffusers import UNet2DConditionModel
 
-        unet = UNet2DConditionModel.from_pretrained("stabilityai/sd-turbo", subfolder="unet")
+        #unet = UNet2DConditionModel.from_pretrained("stabilityai/sd-turbo", subfolder="unet")
+        unet = UNet2DConditionModel.from_pretrained("nvidia/difix_ref", subfolder="unet")
 
         if pretrained_path is not None:
             sd = torch.load(pretrained_path, map_location="cpu")
@@ -151,7 +156,7 @@ class Difix(torch.nn.Module):
             unet.load_state_dict(_sd_unet)
 
         elif pretrained_name is None and pretrained_path is None:
-            print("Initializing model with random weights")
+            print("Pretrained_path is None, using randomly initialized weights.")
             target_modules_vae = []
 
             torch.nn.init.constant_(vae.decoder.skip_conv_1.weight, 1e-5)
@@ -266,7 +271,7 @@ class Difix(torch.nn.Module):
         sd = {}
         sd["vae_lora_target_modules"] = self.target_modules_vae
         sd["rank_vae"] = self.lora_rank_vae
-        sd["state_dict_unet"] = {k: v for k, v in self.unet.state_dict().items() if "lora" in k or "conv_in" in k}
+        sd["state_dict_unet"] = {k: v for k, v in self.unet.state_dict().items()}
         sd["state_dict_vae"] = {k: v for k, v in self.vae.state_dict().items() if "lora" in k or "skip" in k}
         
         sd["optimizer"] = optimizer.state_dict()

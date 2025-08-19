@@ -28,8 +28,8 @@ class PairedDataset(torch.utils.data.Dataset):
         caption = self.data[img_id]["prompt"]
         
         try:
-            input_img = Image.open(input_img)
-            output_img = Image.open(output_img)
+            img_t = Image.open(input_img)
+            output_t = Image.open(output_img)
         except:
             print("Error loading image:", input_img, output_img)
             return self.__getitem__(idx + 1)
@@ -43,7 +43,7 @@ class PairedDataset(torch.utils.data.Dataset):
         output_t = F.normalize(output_t, mean=[0.5], std=[0.5])
 
         if ref_img is not None:
-            ref_img = Image.open(ref_img)
+            ref_t = Image.open(ref_img)
             ref_t = F.to_tensor(ref_t)
             ref_t = F.resize(ref_t, self.image_size)
             ref_t = F.normalize(ref_t, mean=[0.5], std=[0.5])
